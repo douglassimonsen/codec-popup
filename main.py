@@ -16,8 +16,13 @@ def codepoint(byt):
 
 class State:
     def __init__(self) -> None:
+        try:
+            self.raw_clipboard = root.clipboard_get().encode("UTF-8")
+        except:  # happens when there's no clipboard set
+            self.raw_clipboard = b""
+        self.string_encoding = "UTF-8"
+        self.clipboard = self.raw_clipboard.decode(self.string_encoding)
         self.char_index = 0
-        self.clipboard = root.clipboard_get()
         self.char = tk.StringVar(root, "")
         self.pre_string = tk.StringVar(root, "")
         self.post_string = tk.StringVar(root, "")
@@ -27,8 +32,12 @@ class State:
         }
         self.utf8_link = None
         self._update()
-    
+        self.buttons = {}
+
     def _update(self):
+        self.clipboard = self.raw_clipboard.decode(self.string_encoding)
+        if self.char_index >= len(self.clipboard):
+            self.char_index = len(self.clipboard) - 1
         self.char.set(self.clipboard[self.char_index])
         self.pre_string.set(self.clipboard[:self.char_index])
         self.post_string.set(self.clipboard[self.char_index + 1:])
@@ -45,6 +54,17 @@ class State:
         self.char_index = min(self.char_index + 1, len(self.clipboard) - 1)
         self._update()
 
+    def change_clipboard_encoding(self, new_encoding):
+        self.string_encoding = new_encoding
+        for encoding, encoding_button in self.buttons.items():
+            encoding_button.configure(background= "white" if encoding == new_encoding else "grey")
+        self._update()
+
+    def next_clipboard_encoding(self):
+        encodings = list(self.buttons.keys())
+        new_encoding = dict(zip(encodings, encodings[1:] + [encodings[0]]))[self.string_encoding]
+        self.change_clipboard_encoding(new_encoding)
+
 
 root = tk.Tk()
 state = State()
@@ -52,6 +72,7 @@ state = State()
 
 def layout_root():
     root.geometry("400x150")
+    root.title("Encoding Checker")
     root.grid_rowconfigure(0, weight=2)
     root.grid_rowconfigure(1, weight=10)
     root.grid_rowconfigure(2, weight=1)
@@ -60,6 +81,8 @@ def layout_root():
 
     root.bind("<KeyPress-Left>", state.left_press)
     root.bind("<KeyPress-Right>", state.right_press)
+    root.bind("<KeyPress-Up>", lambda _: state.next_clipboard_encoding())
+    root.bind("<KeyPress-Down>", lambda _: state.next_clipboard_encoding())
     return root
 
 
@@ -84,17 +107,23 @@ def layout_characters(root):
 def layout_message(root):
     frame = tk.Frame(root)
     frame.grid(row=1, column=0, sticky="nsew")
-    tk.Label(frame, textvariable=state.pre_string).pack(side=tk.LEFT)    
-    tk.Label(frame, textvariable=state.char, background="yellow").pack(side=tk.LEFT)    
-    tk.Label(frame, textvariable=state.post_string).pack(side=tk.LEFT)    
+    root.grid_columnconfigure(0, weight=500)
+    root.grid_columnconfigure(1, weight=1)
+    root.grid_columnconfigure(2, weight=500)
+
+    tk.Label(frame, textvariable=state.pre_string).grid(row=0, column=0, sticky="NES")    
+    tk.Label(frame, textvariable=state.char, background="yellow").grid(row=0, column=1, sticky="NSEW")    
+    tk.Label(frame, textvariable=state.post_string).grid(row=0, column=2, sticky="NWS")
 
 
 def layout_buttons(root):
     frame = tk.Frame(root)
     frame.grid(row=2, column=0, columnspan=2, sticky="nsew")
 
-    tk.Button(frame, text="Show As UTF-8").pack(side=tk.LEFT, expand=True)
-    tk.Button(frame, text="Show As CP1252").pack(side=tk.LEFT, expand=True)
+    state.buttons['UTF-8'] = tk.Button(frame, text="Show As UTF-8", command=lambda: state.change_clipboard_encoding("UTF-8"))
+    state.buttons['UTF-8'].pack(side=tk.LEFT, expand=True)
+    state.buttons['CP1252'] = tk.Button(frame, text="Show As CP1252", command=lambda: state.change_clipboard_encoding("CP1252"), background="grey")
+    state.buttons['CP1252'].pack(side=tk.LEFT, expand=True)
 
 
 def main():
