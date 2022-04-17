@@ -2,19 +2,40 @@ import tkinter as tk
 import link
 
 
+
+def encoding(byt, encoding):
+    try:
+        return byt.get().encode("UTF-8").decode(encoding)
+    except UnicodeDecodeError:
+        return "Decode Error"
+
+
+def codepoint(byt):
+    return hex(ord(byt.get()[0]))[2:]
+
+
 class State:
     def __init__(self) -> None:
-        self.char_index = 5
+        self.char_index = 0
         self.clipboard = root.clipboard_get()
         self.char = tk.StringVar(root, "")
         self.pre_string = tk.StringVar(root, "")
         self.post_string = tk.StringVar(root, "")
+        self.encodings = {
+            "UTF-8": tk.StringVar(root, ""),
+            "CP1252": tk.StringVar(root, ""),
+        }
+        self.utf8_link = None
         self._update()
     
     def _update(self):
         self.char.set(self.clipboard[self.char_index])
         self.pre_string.set(self.clipboard[:self.char_index])
         self.post_string.set(self.clipboard[self.char_index + 1:])
+        self.encodings['UTF-8'].set(encoding(self.char, "UTF-8"))
+        self.encodings['CP1252'].set(encoding(self.char, "CP1252"))
+        if self.utf8_link is not None:
+            self.utf8_link.link = f"https://www.fileformat.info/info/unicode/char/{codepoint(self.char)}/index.htm"
 
     def left_press(self, event):
         self.char_index = max(self.char_index - 1, 0)
@@ -43,17 +64,6 @@ def layout_root():
 
 
 def layout_characters(root):
-    def codepoint(byt):
-        return hex(ord(byt.get()[0]))[2:]
-
-
-    def encoding(byt, encoding):
-        print(byt.get())
-        try:
-            return byt.get().decode(encoding)
-        except:
-            return "Decode Error"
-
     frame1 = tk.Frame(root)
     frame1.grid(row=0, column=1, sticky="nsew")
 
@@ -63,10 +73,12 @@ def layout_characters(root):
     frame3 = tk.Frame(frame1, highlightbackground="black", highlightthickness=1)
     frame3.grid(row=0, column=1, sticky="nsew")
 
-    link.Link(frame2, link=f"https://www.fileformat.info/info/unicode/char/{codepoint(state.char)}/index.htm", text="UTF-8").grid(row=1, column=1, sticky="EW")
+    state.utf8_link = link.Link(frame2, text="UTF-8")
+    state.utf8_link.grid(row=1, column=1, sticky="EW")
+
     link.Link(frame3, link=f"https://www.i18nqa.com/debug/table-iso8859-1-vs-windows-1252.html", text="CP1252").grid(row=1, column=2, sticky="EW")
-    tk.Label(frame2, textvariable=encoding(state.char, "UTF-8")).grid(row=0, column=1, sticky="EW")
-    tk.Label(frame3, textvariable=encoding(state.char, "CP1252")).grid(row=0, column=2, sticky="EW")
+    tk.Label(frame2, textvariable=state.encodings["UTF-8"]).grid(row=0, column=1, sticky="EW")
+    tk.Label(frame3, textvariable=state.encodings["CP1252"]).grid(row=0, column=2, sticky="EW")
 
 
 def layout_message(root):
